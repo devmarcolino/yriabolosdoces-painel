@@ -1,0 +1,59 @@
+@media screen and (max-width: 768px) {
+    .content {
+        padding: .3rem 1rem;
+    }
+
+    button {
+        width: 100%;
+    }
+
+    .orders {
+        width: 100%;
+        padding: 1rem 2rem;
+    }
+
+    .large {
+        width: 100%;
+    }
+
+    table {
+        font-size: 14pt;
+        padding: 0;
+    }
+
+    .user {
+        width: 100%;
+    }
+
+    .user p {
+        font-size: 13pt;
+    }
+
+    .title-tb {
+        font-size: 15pt;
+    }
+
+    .modal {
+        padding: 1rem;
+    }
+
+    .info h2 {
+        font-size: 22pt;
+    }
+
+    .info p {
+        font-size: 15pt;
+    }
+
+    .modal-content h3 {
+        font-size: 23pt;
+    }
+
+    .modal-content {
+        width: 99%;
+    }
+
+    .message {
+        width: 100%;
+    }
+}

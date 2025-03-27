@@ -36,6 +36,7 @@ if ($result) {
     <title>Painel | Yria Bolos e Doces</title>
     <link rel="shortcut icon" href="../assets/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../style-responsive.css">
 </head>
 <body>
     <header>
@@ -46,7 +47,7 @@ if ($result) {
 
     <div class="content">
         <div class="user">
-            <p class="subtitle">Olá <?php echo "$res_name" ?>, seja bem-vinda a sua <br>comanda digital!</p>
+            <p class="subtitle">Olá <?php echo "$res_name" ?>, seja bem-vinda a sua <wbr>comanda digital!</p>
             <button><a href="../logout.php"><img src="" alt=""><img src="../assets/log-out.svg" alt=""> Sair da conta</a></button>
         </div>
 
@@ -77,43 +78,18 @@ if ($result) {
                     <p><strong>ID:</strong> <span id="pedidoId"><?php echo $idPedido; ?></span></p>
                     <p><strong>Cliente:</strong> <span id="pedidoCliente"><?php echo $cliente; ?></span></p>
                     <p><strong>Status:</strong> <span id="pedidoStatus"><?php echo $status; ?></span></p>
-                    <p><strong>Valor:</strong> <span id="pedidoPrecoTotal"><?php echo "R$" . number_format($precoTotal, 2, ',', '.'); ?></span></p>
+                    <p><strong>Valor:</strong> <span id="pedidoPrecoTotal"><?php echo "R$". number_format($precoTotal, 2, ',', '.'); ?></span></p>
                     
                     <table class="tabela">
                         <tr>
                             <td class="title-tb">Produto</td>
+                            <td class="title-tb">Qnt</td>
                             <td class="title-tb">Sabor</td>
                             <td class="title-tb">Valor</td>
                         </tr>
-
-                        <?php
-                            // Pegando os itens do pedido
-                            $sqlItens = "SELECT pi.*, p.nome AS nome, s.sabor 
-                                        FROM pedido_itens pi
-                                        JOIN produtos p ON pi.idProduto = p.idProduto
-                                        JOIN sabores s ON pi.idSabor = s.idSabor
-                                        WHERE pi.idPedido = '$idPedido'";
-                            $resultItens = $conexao->query($sqlItens);
-
-                            if ($resultItens->num_rows > 0) {
-                                while ($row = $resultItens->fetch_assoc()) {
-                                    $produtoNome = $row['nome'];
-                                    $sabor = $row['sabor'];
-                                    $precoItem = $row['precoTotal']; // Preço total do item
-
-                                    // Exibindo as informações dos itens do pedido
-                                    echo "<tr>
-                                            <td class='prod-info'>$produtoNome</td>
-                                            <td class='prod-info'>$sabor</td>
-                                            <td class='prod-info'>R$" . number_format($precoItem, 2, ',', '.') . "</td>
-                                        </tr>";
-                                }
-                            } else {
-                                echo "<tr><td colspan='3'>Nenhum item encontrado para este pedido.</td></tr>";
-                            }
-                        ?>
+                        <tbody id="itensPedido"></tbody>
                     </table>
-                    
+                                        
                     <button onclick="fecharInfos()">Fechar</button>
                 </div>
             </div>
@@ -176,68 +152,38 @@ if ($result) {
                 $produtos_array[] = $produto;
             }
 
-            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-                $cliente = mysqli_real_escape_string($conexao, $_POST['cliente']);
+            $sabores_por_produto = [];
 
-                // Criar o pedido na tabela 'pedidos'
-                $query_pedido = "INSERT INTO pedidos (dataPedido, precototal, cliente, status) VALUES (NOW(), 0, '$cliente', 0)";
-                mysqli_query($conexao, $query_pedido) or die(mysqli_error($conexao));
+            // Consulta para obter todos os sabores e seus respectivos produtos
+            $query_sabores = "SELECT idProduto, idSabor, sabor FROM sabores";
+            $result_sabores = mysqli_query($conexao, $query_sabores);
 
-                // Pegando o ID do pedido recém-criado
-                $idPedido = mysqli_insert_id($conexao);
-                $totalPedido = 0;
+            // Preencher o array associando sabores aos produtos
+            while ($row = mysqli_fetch_assoc($result_sabores)) {
+                $idProduto = $row['idProduto'];
+                $idSabor = $row['idSabor'];
+                $sabor = $row['sabor'];
 
-                // Verifica se os produtos foram enviados corretamente
-                if (!empty($_POST['produtos']) && !empty($_POST['sabores']) && !empty($_POST['quantidades'])) {
-                    $produtos = $_POST['produtos'];
-                    $sabores = $_POST['sabores'];
-                    $quantidades = $_POST['quantidades'];
-
-                    // Inserir os itens do pedido na tabela 'pedido_itens'
-                    for ($i = 0; $i < count($produtos); $i++) {
-                        $idProduto = (int)$produtos[$i];
-                        $idSabor = (int)$sabores[$i];
-                        $quantidade = (int)$quantidades[$i];
-
-                        // Buscar preço do produto e do sabor
-                        $query_preco = "SELECT preco FROM produtos WHERE idProduto = '$idProduto'";
-                        $resultado_produto = mysqli_query($conexao, $query_preco);
-                        $produto = mysqli_fetch_assoc($resultado_produto);
-                        $precoProduto = $produto ? $produto['preco'] : 0;
-
-                        $query_sabor = "SELECT addPreco FROM sabores WHERE idSabor = '$idSabor'";
-                        $resultado_sabor = mysqli_query($conexao, $query_sabor);
-                        $sabor = mysqli_fetch_assoc($resultado_sabor);
-                        $precoSabor = $sabor ? $sabor['addPreco'] : 0;
-
-                        // Calcular preço total do item
-                        $precoFinal = ($precoProduto + $precoSabor) * $quantidade;
-                        $totalPedido += $precoFinal;
-
-                        // Inserir item no pedido_itens
-                        $query_item = "INSERT INTO pedido_itens (idPedido, idProduto, idSabor, qnt, preco) 
-                                    VALUES ('$idPedido', '$idProduto', '$idSabor', '$quantidade', '$precoFinal')";
-                        mysqli_query($conexao, $query_item) or die(mysqli_error($conexao));
-                    }
-                }
-
-                // Atualizar o total do pedido
-                $query_update_total = "UPDATE pedidos SET precototal = '$totalPedido' WHERE idPedido = '$idPedido'";
-                mysqli_query($conexao, $query_update_total) or die(mysqli_error($conexao));
-
-                echo "<script>alert('Pedido adicionado com sucesso!'); window.location.href='../index.php';</script>";
+                // Agrupar os sabores por produto
+                $sabores_por_produto[$idProduto][] = [
+                    'idSabor' => $idSabor,
+                    'sabor' => $sabor
+                ];
             }
+            
             ?>
 
         <div class="modal" id="produtos-container">
+            
             <div class="modal-content">
+                <form action="" method="post">
                 <h3>Adicionar Produto</h3>
                 <div class="sp">
                     <label for="produto">Produto</label>
                     <select name="produto" id="produto" onchange="atualizarSabores()">
                         <option value="">Selecione um produto</option>
                         <?php foreach ($produtos_array as $produto): ?>
-                            <option value="<?php echo "\"{$produto['idProduto']}\""; ?>"><?php echo "\"{$produto['nome']}\""; ?></option>
+                            <option value="<?php echo $produto['idProduto'] ?>"> <?php echo $produto['nome'] ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -249,12 +195,14 @@ if ($result) {
                 </div>
                 <div class="sp">
                     <label for="qtd">Quantidade</label>
+
                     <input type="number" name="qtd" id="qtd" required>
                 </div>
-                <div class="sp">
-                    <button type="button" class="btn" onclick="adicionarProdutoLista()">Adicionar</button>
-                    <button type="button" class="btn" onclick="fecharModal()">Fechar</button>
+                <div class="menu">
+                <button type="button" class="btn" onclick="adicionarProdutoLista()"><img src="../assets/package-plus.svg" alt="">Adicionar</button>
+                <button type="button" class="btn" onclick="fecharModal()"><img src="../assets/x.svg" alt="">Fechar</button>
                 </div>
+                </form>
             </div>
         </div>
 
@@ -264,37 +212,40 @@ if ($result) {
                         <span class="close" onclick="fecharPedido()">&times;</span>
                     </div>
 
-                    <form id="menu" method="POST" action="">
-                        <div class="products">
-                            <h3>Produtos</h3>
-                            <div class="campo-produtos" id="lista-produtos"></div>
-                            <div class="sp">
-                                <button type="button" class="btn" onclick="abrirModal()">Adicionar Produto</button>
-                            </div>
-                        </div>
+                    <form id="menu" method="POST" action="processa_pedido.php">
+                    <h4>Produtos</h4>
+    <div class="products">
+        
+        <div class="campo-produtos" id="lista-produtos"></div>
+        <input type="hidden" name="produtos" id="produtos-selecionados">
+            <button type="button" class="btn" onclick="abrirModal()"><img src="../assets/package-plus.svg" alt="">Adicionar Produto</button>
+    </div>
 
-                        <div class="sp">
-                            <label for="cliente">Cliente</label>
-                            <input type="text" id="cliente" name="cliente" required>
-                        </div>
+    <div class="sp">
+        <label for="cliente">Cliente</label>
+        <input type="text" id="cliente" name="cliente" required>
+    </div>
 
-                        <input id="btn" type="submit" class="btn-primary" value="Finalizar Pedido">
-                    </form>
+    <input id="btn" type="submit" class="btn-primary" value="Finalizar Pedido">
+</form>
                 </div>
         </div>
+        
         
         <div class="menu">
             <button class="large"><a href="../orders/"><img src="../assets/package.svg" alt="">Ver todos os pedidos</a></button>
             
             <button class="large" onclick="abrirPedido()"><img src="../assets/plus-square.svg" alt="">Adicionar Pedido</button>
-        </div>
+    </div>
 
     </div>
 
+    
+    
     <script>
         var saboresPorProduto = <?php echo json_encode($sabores_por_produto); ?>;
 
-        
+
         function atualizarSabores() {
             var produtoSelecionado = document.getElementById("produto").value;
             var selectSabor = document.getElementById("sabor");
@@ -312,23 +263,41 @@ if ($result) {
             }
         }
             
-            function adicionarProdutoLista() {
-                var produto = document.getElementById("produto");
-                var sabor = document.getElementById("sabor");
-                var quantidade = document.getElementById("qtd").value;
-                if (produto.value && sabor.value && quantidade) {
-                    var lista = document.getElementById("lista-produtos");
-                    var novoProduto = document.createElement("div");
-                    novoProduto.classList.add("prod-item");
-                    novoProduto.innerHTML = `<h4>Nome Produto: ${produto.options[produto.selectedIndex].text}</h4>
-                                            <p>Sabor Produto: ${sabor.options[sabor.selectedIndex].text}</p>
-                                            <h4>Quantidade: ${quantidade}</h4>`;
-                    lista.appendChild(novoProduto);
-                    fecharModal();
-                } else {
-                    alert("Por favor, selecione um produto, sabor e quantidade.");
-                }
+        function adicionarProdutoLista() {
+    var produto = document.getElementById("produto");
+    var sabor = document.getElementById("sabor");
+    var quantidade = document.getElementById("qtd").value;
+
+    if (produto.value && sabor.value && quantidade) {
+        var lista = document.getElementById("lista-produtos");
+        var novoProduto = document.createElement("div");
+        novoProduto.classList.add("prod-item");
+        novoProduto.innerHTML = `<h4>Nome Produto: ${produto.options[produto.selectedIndex].text}</h4>
+                                 <p>Sabor Produto: ${sabor.options[sabor.selectedIndex].text}</p>
+                                 <h4>Quantidade: ${quantidade}</h4>`;
+        lista.appendChild(novoProduto);
+
+        // Criando ou atualizando o input hidden
+        var inputHidden = document.getElementById("produtos-selecionados");
+        var produtosArray = inputHidden.value ? JSON.parse(inputHidden.value) : [];
+
+        // Adicionando o novo produto ao array
+        produtosArray.push({
+            idProduto: produto.value,
+            nomeProduto: produto.options[produto.selectedIndex].text,
+            idSabor: sabor.value,
+            nomeSabor: sabor.options[sabor.selectedIndex].text,
+            quantidade: quantidade
+        });
+
+        // Atualizando o valor do input hidden
+        inputHidden.value = JSON.stringify(produtosArray);
+
+        fecharModal();
+    } else {
+        alert("Por favor, selecione um produto, sabor e quantidade.");
     }
+}
     </script>
     <script src="../script.js"></script>
 </body>

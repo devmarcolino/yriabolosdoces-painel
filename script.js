@@ -7,13 +7,18 @@ function fecharPedido() {
 }
 
 function abrirInfos(idPedido, cliente, status, precoTotal) {
-    // Preenche as informações no modal
+
     document.getElementById("pedidoId").textContent = idPedido;
     document.getElementById("pedidoCliente").textContent = cliente;
     document.getElementById("pedidoStatus").textContent = status;
-    document.getElementById("pedidoPrecoTotal").textContent = "R$ " + precoTotal.replace(".", ",");  // Formata o valor para exibição
+    document.getElementById("pedidoPrecoTotal").textContent = "R$" + precoTotal.replace(".", ",");  // Formata o valor para exibição
 
-    // Exibe o modal
+    fetch("buscar_itens.php?idPedido=" + idPedido)
+        .then(response => response.text())
+        .then(data => {
+            document.getElementById("itensPedido").innerHTML = data;
+        });
+
     document.getElementById("pedidoInfo").style.display = "flex";
 }
 
